@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image pipeline</title>
+  <style>
+    body { font-family: Georgia, serif; margin: 2rem auto; max-width: 40rem; color: #1c1917; background: #faf7f2; }
+    h1 { font-size: 1.6rem; }
+    label { display: block; margin-top: 1rem; font-family: Consolas, monospace; font-size: 0.85rem; }
+    input { width: 100%; box-sizing: border-box; margin-top: 0.3rem; padding: 0.45rem; }
+    button { margin-top: 1rem; padding: 0.5rem 0.9rem; }
+    pre { background: #fff; padding: 0.8rem; overflow: auto; }
+    img { max-width: 100%; margin-top: 0.6rem; }
+  </style>
+</head>
+<body>
+  <h1>Image pipeline</h1>
+  <p>Ask the API for an upload URL, send the file directly to S3, then poll until processing finishes.</p>
+  <label>API URL
+    <input id="api" placeholder="https://abc123.execute-api.us-east-1.amazonaws.com">
+  </label>
+  <label>Image
+    <input id="file" type="file" accept="image/jpeg,image/png,image/webp">
+  </label>
+  <button id="send" type="button">Upload</button>
+  <pre id="log">Waiting for a file.</pre>
+  <img id="preview" alt="" hidden>
+  <script>
+    const log = document.getElementById("log");
+    const preview = document.getElementById("preview");
+    document.getElementById("send").addEventListener("click", async () => {
+      const api = document.getElementById("api").value.replace(/\/$/, "");
+      const file = document.getElementById("file").files[0];
+      if (!api || !file) {
+        log.textContent = "Enter the API URL and choose an image.";
+        return;
+      }
+      log.textContent = "Requesting an upload URL...";
+      const created = await fetch(api + "/uploads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type })
+      });
+      const ticket = await created.json();
+      if (!created.ok) {
+        log.textContent = JSON.stringify(ticket, null, 2);
+        return;
+      }
+      log.textContent = "Uploading to S3...";
+      const put = await fetch(ticket.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": ticket.contentType },
+        body: file
+      });
+      if (!put.ok) {
+        log.textContent = "Upload failed with status " + put.status;
+        return;
+      }
+      for (let attempt = 1; attempt <= 20; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const status = await fetch(api + "/images/" + ticket.imageId);
+        const item = await status.json();
+        log.textContent = JSON.stringify(item, null, 2);
+        if (item.status === "COMPLETE" && item.displayUrl) {
+          preview.hidden = false;
+          preview.src = item.displayUrl;
+          return;
+        }
+        if (item.status === "REJECTED" || item.status === "FAILED") return;
+      }
+    });
+  </script>
+</body>
+</html>

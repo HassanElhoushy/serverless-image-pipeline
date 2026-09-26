@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="760" viewBox="0 0 1180 760" role="img" aria-label="Architecture of the serverless image processing pipeline">
+  <rect width="1180" height="760" fill="#f6f4ef"/>
+  <text x="36" y="42" font-family="Georgia, serif" font-size="26" fill="#1c1917">Serverless image processing pipeline</text>
+  <text x="36" y="68" font-family="Consolas, monospace" font-size="13" fill="#57534e">S3, SQS, Lambda, Step Functions, API Gateway, DynamoDB, CloudFront, SNS</text>
+
+  <g font-family="Consolas, monospace" font-size="13">
+    <rect x="36" y="100" width="150" height="58" rx="8" fill="#1c1917"/>
+    <text x="111" y="134" text-anchor="middle" fill="#faf7f2">Client</text>
+
+    <rect x="230" y="100" width="170" height="58" rx="8" fill="#5b3cc4"/>
+    <text x="315" y="134" text-anchor="middle" fill="#ffffff">API Gateway</text>
+
+    <rect x="444" y="100" width="180" height="58" rx="8" fill="#c2410c"/>
+    <text x="534" y="126" text-anchor="middle" fill="#ffffff">Lambda</text>
+    <text x="534" y="144" text-anchor="middle" fill="#ffedd5">presigned URL</text>
+
+    <rect x="668" y="100" width="170" height="58" rx="8" fill="#1d4ed8"/>
+    <text x="753" y="134" text-anchor="middle" fill="#ffffff">DynamoDB</text>
+
+    <rect x="882" y="100" width="250" height="58" rx="8" fill="#3f6212"/>
+    <text x="1007" y="126" text-anchor="middle" fill="#ffffff">S3 source bucket</text>
+    <text x="1007" y="144" text-anchor="middle" fill="#ecfccb">private, SSE-S3</text>
+
+    <path d="M186 129 H230" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M400 129 H444" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M624 129 H668" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M186 150 C186 188, 1007 188, 1007 158" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <text x="520" y="184" text-anchor="middle" fill="#57534e" font-size="12">browser uploads the file with the presigned URL</text>
+
+    <rect x="36" y="230" width="250" height="58" rx="8" fill="#3f6212"/>
+    <text x="161" y="256" text-anchor="middle" fill="#ffffff">S3 event notification</text>
+    <text x="161" y="274" text-anchor="middle" fill="#ecfccb">prefix uploads/</text>
+
+    <rect x="330" y="230" width="150" height="58" rx="8" fill="#9d174d"/>
+    <text x="405" y="264" text-anchor="middle" fill="#ffffff">SQS queue</text>
+
+    <rect x="330" y="304" width="150" height="48" rx="8" fill="#7f1d1d"/>
+    <text x="405" y="333" text-anchor="middle" fill="#ffffff">Dead-letter queue</text>
+
+    <rect x="524" y="230" width="180" height="58" rx="8" fill="#c2410c"/>
+    <text x="614" y="256" text-anchor="middle" fill="#ffffff">Lambda</text>
+    <text x="614" y="274" text-anchor="middle" fill="#ffedd5">start workflow</text>
+
+    <rect x="748" y="214" width="384" height="150" rx="12" fill="none" stroke="#9d174d" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="940" y="236" text-anchor="middle" fill="#9d174d">Step Functions</text>
+    <rect x="768" y="252" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="810" y="276" text-anchor="middle" fill="#9a3412">Validate</text>
+    <rect x="864" y="252" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="906" y="276" text-anchor="middle" fill="#9a3412">Resize</text>
+    <rect x="960" y="252" width="100" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="1010" y="276" text-anchor="middle" fill="#9a3412">Watermark</text>
+    <rect x="768" y="306" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="810" y="330" text-anchor="middle" fill="#9a3412">Store</text>
+    <text x="940" y="348" text-anchor="middle" fill="#57534e" font-size="12">image bytes stay in S3, not in the workflow payload</text>
+
+    <path d="M286 259 H330" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M405 288 V304" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M480 259 H524" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M704 259 H748" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <text x="405" y="226" text-anchor="middle" fill="#57534e" font-size="12">decoupled, 3 tries then DLQ</text>
+
+    <rect x="36" y="430" width="250" height="58" rx="8" fill="#3f6212"/>
+    <text x="161" y="456" text-anchor="middle" fill="#ffffff">S3 destination bucket</text>
+    <text x="161" y="474" text-anchor="middle" fill="#ecfccb">images/ prefix only</text>
+
+    <rect x="330" y="430" width="180" height="58" rx="8" fill="#5b3cc4"/>
+    <text x="420" y="456" text-anchor="middle" fill="#ffffff">CloudFront</text>
+    <text x="420" y="474" text-anchor="middle" fill="#ede9fe">OAC, HTTPS</text>
+
+    <rect x="554" y="430" width="150" height="58" rx="8" fill="#1c1917"/>
+    <text x="629" y="464" text-anchor="middle" fill="#faf7f2">Viewers</text>
+
+    <rect x="748" y="430" width="170" height="58" rx="8" fill="#9d174d"/>
+    <text x="833" y="464" text-anchor="middle" fill="#ffffff">SNS topic</text>
+
+    <rect x="962" y="430" width="170" height="58" rx="8" fill="#1d4ed8"/>
+    <text x="1047" y="456" text-anchor="middle" fill="#ffffff">DynamoDB</text>
+    <text x="1047" y="474" text-anchor="middle" fill="#dbeafe">status + URLs</text>
+
+    <path d="M286 459 H330" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M510 459 H554" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M810 366 C810 400, 161 400, 161 430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M906 366 C906 408, 833 408, 833 430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <path d="M1047 366 V430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+
+    <text x="36" y="540" fill="#1c1917" font-family="Georgia, serif" font-size="18">Guards that do not change the request path</text>
+    <text x="36" y="568" fill="#44403c">Least-privilege IAM role on every function. Presigned upload expires in 5 minutes.</text>
+    <text x="36" y="590" fill="#44403c">Both buckets block public access. CloudFront is the only reader of processed images.</text>
+    <text x="36" y="612" fill="#44403c">SQS encryption uses the SQS managed key. Objects use SSE-S3. DynamoDB uses the AWS owned key.</text>
+    <text x="36" y="634" fill="#44403c">Lifecycle rules expire uploads, staging files, and old processed images. A CloudWatch alarm watches the DLQ.</text>
+    <text x="36" y="656" fill="#44403c">Rejected files stop after validation. Failures update DynamoDB and publish to SNS.</text>
+    <text x="36" y="700" fill="#57534e" font-size="12">Hassan Elhoushy</text>
+  </g>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0 0 L7 3 L0 6 Z" fill="#44403c"/>
+    </marker>
+  </defs>
+</svg>

@@ -1,0 +1,575 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless image processing pipeline. Author Hassan Elhoushy.
+
+Parameters:
+  BucketPrefix:
+    Type: String
+    Default: elhoushy-img
+    AllowedPattern: "^[a-z0-9-]{3,24}$"
+    ConstraintDescription: Use 3 to 24 lowercase letters, numbers, or hyphens.
+  WatermarkText:
+    Type: String
+    Default: PREVIEW
+    MinLength: 1
+    MaxLength: 40
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    Tracing: Active
+    Timeout: 60
+
+Resources:
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: SourceQueuePolicy
+    Properties:
+      BucketName: !Sub ${BucketPrefix}-src-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            MaxAge: 300
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireUploads
+            Status: Enabled
+            Filter:
+              Prefix: uploads/
+            ExpirationInDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+          - Id: ExpireStaging
+            Status: Enabled
+            Filter:
+              Prefix: staging/
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt UploadQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: uploads/
+
+  SourceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SourceBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt SourceBucket.Arn
+              - !Sub ${SourceBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  DestBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${BucketPrefix}-dst-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireProcessedImages
+            Status: Enabled
+            Filter:
+              Prefix: images/
+            ExpirationInDays: 90
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  DestBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DestBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt DestBucket.Arn
+              - !Sub ${DestBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${DestBucket.Arn}/images/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  UploadDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-uploads-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  UploadQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-uploads
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 86400
+      ReceiveMessageWaitTimeSeconds: 20
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt UploadDLQ.Arn
+        maxReceiveCount: 3
+
+  SourceQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref UploadQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSourceBucket
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt UploadQueue.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:s3:::${BucketPrefix}-src-${AWS::AccountId}
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  MetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: imageId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: imageId
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ProcessingTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWS::StackName}-image-events
+
+  DlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${AWS::StackName}-dlq-messages
+      AlarmDescription: Image upload messages reached the dead-letter queue
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt UploadDLQ.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref ProcessingTopic
+      TreatMissingData: notBreaching
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-oac
+        Description: Read processed images from the private destination bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub ${AWS::StackName} processed images
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        Origins:
+          - Id: processed-images
+            DomainName: !GetAtt DestBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: processed-images
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+
+  PillowLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub ${AWS::StackName}-pillow
+      Description: Pillow for resize and watermark
+      ContentUri: layers/pillow/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+    Metadata:
+      BuildMethod: python3.12
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+        AllowOrigins:
+          - "*"
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-api
+      RetentionInDays: 7
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: ApiLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-api
+      CodeUri: src/api/
+      Handler: app.handler
+      MemorySize: 256
+      Timeout: 10
+      LoggingConfig:
+        LogGroup: !Ref ApiLogGroup
+      Environment:
+        Variables:
+          SOURCE_BUCKET: !Ref SourceBucket
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub ${SourceBucket.Arn}/uploads/*
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+              Resource: !GetAtt MetadataTable.Arn
+      Events:
+        CreateUpload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /uploads
+            PayloadFormatVersion: "2.0"
+        GetImage:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /images/{imageId}
+            PayloadFormatVersion: "2.0"
+
+  StartLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-start
+      RetentionInDays: 7
+
+  StartFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: StartLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-start
+      CodeUri: src/start/
+      Handler: app.handler
+      MemorySize: 256
+      Timeout: 20
+      LoggingConfig:
+        LogGroup: !Ref StartLogGroup
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref ImagePipeline
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: states:StartExecution
+              Resource: !Ref ImagePipeline
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt MetadataTable.Arn
+      Events:
+        UploadQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt UploadQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  ValidateLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-validate
+      RetentionInDays: 7
+
+  ValidateFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: ValidateLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-validate
+      CodeUri: src/image/
+      Handler: app.validate_handler
+      MemorySize: 1024
+      Layers:
+        - !Ref PillowLayer
+      LoggingConfig:
+        LogGroup: !Ref ValidateLogGroup
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub ${SourceBucket.Arn}/uploads/*
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt MetadataTable.Arn
+
+  ResizeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-resize
+      RetentionInDays: 7
+
+  ResizeFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: ResizeLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-resize
+      CodeUri: src/image/
+      Handler: app.resize_handler
+      MemorySize: 1024
+      Layers:
+        - !Ref PillowLayer
+      LoggingConfig:
+        LogGroup: !Ref ResizeLogGroup
+      Environment:
+        Variables:
+          SOURCE_BUCKET: !Ref SourceBucket
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub ${SourceBucket.Arn}/uploads/*
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub ${SourceBucket.Arn}/staging/*
+
+  WatermarkLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-watermark
+      RetentionInDays: 7
+
+  WatermarkFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: WatermarkLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-watermark
+      CodeUri: src/image/
+      Handler: app.watermark_handler
+      MemorySize: 1024
+      Layers:
+        - !Ref PillowLayer
+      LoggingConfig:
+        LogGroup: !Ref WatermarkLogGroup
+      Environment:
+        Variables:
+          DEST_BUCKET: !Ref DestBucket
+          WATERMARK_TEXT: !Ref WatermarkText
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub ${SourceBucket.Arn}/staging/*
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub ${DestBucket.Arn}/images/*
+
+  StoreLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-store
+      RetentionInDays: 7
+
+  StoreFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: StoreLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-store
+      CodeUri: src/image/
+      Handler: app.store_handler
+      MemorySize: 512
+      Layers:
+        - !Ref PillowLayer
+      LoggingConfig:
+        LogGroup: !Ref StoreLogGroup
+      Environment:
+        Variables:
+          CLOUDFRONT_DOMAIN: !GetAtt Distribution.DomainName
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:DeleteObject
+              Resource: !Sub ${SourceBucket.Arn}/staging/*
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt MetadataTable.Arn
+
+  FailLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-fail
+      RetentionInDays: 7
+
+  FailFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: FailLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-fail
+      CodeUri: src/image/
+      Handler: app.fail_handler
+      MemorySize: 512
+      Layers:
+        - !Ref PillowLayer
+      LoggingConfig:
+        LogGroup: !Ref FailLogGroup
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref MetadataTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt MetadataTable.Arn
+
+  ImagePipeline:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub ${AWS::StackName}-image-pipeline
+      Type: STANDARD
+      DefinitionUri: statemachine/pipeline.asl.json
+      DefinitionSubstitutions:
+        ValidateFunctionArn: !GetAtt ValidateFunction.Arn
+        ResizeFunctionArn: !GetAtt ResizeFunction.Arn
+        WatermarkFunctionArn: !GetAtt WatermarkFunction.Arn
+        StoreFunctionArn: !GetAtt StoreFunction.Arn
+        FailFunctionArn: !GetAtt FailFunction.Arn
+        TopicArn: !Ref ProcessingTopic
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidateFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ResizeFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref WatermarkFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref StoreFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FailFunction
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt ProcessingTopic.TopicName
+
+Outputs:
+  ApiUrl:
+    Description: Upload and status API
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  CloudFrontUrl:
+    Description: Base URL for processed images
+    Value: !Sub https://${Distribution.DomainName}
+  SourceBucketName:
+    Description: Private bucket that receives original uploads
+    Value: !Ref SourceBucket
+  DestinationBucketName:
+    Description: Private bucket that stores processed images
+    Value: !Ref DestBucket
+  MetadataTableName:
+    Description: Image status table
+    Value: !Ref MetadataTable
+  StateMachineArn:
+    Description: Image processing workflow
+    Value: !Ref ImagePipeline
+  NotificationTopicArn:
+    Description: Completion and failure notifications
+    Value: !Ref ProcessingTopic

@@ -1,99 +1,135 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="760" viewBox="0 0 1180 760" role="img" aria-label="Architecture of the serverless image processing pipeline">
-  <rect width="1180" height="760" fill="#f6f4ef"/>
-  <text x="36" y="42" font-family="Georgia, serif" font-size="26" fill="#1c1917">Serverless image processing pipeline</text>
-  <text x="36" y="68" font-family="Consolas, monospace" font-size="13" fill="#57534e">S3, SQS, Lambda, Step Functions, API Gateway, DynamoDB, CloudFront, SNS</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1120" viewBox="0 0 1200 1120" role="img" aria-label="Architecture of the serverless image processing pipeline">
+  <rect width="1200" height="1120" fill="#f6f4ef"/>
+  <text x="40" y="46" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="650" fill="#1c1917">Serverless image processing pipeline</text>
+  <text x="40" y="74" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#78716c">Upload, queue, process, then deliver</text>
 
-  <g font-family="Consolas, monospace" font-size="13">
-    <rect x="36" y="100" width="150" height="58" rx="8" fill="#1c1917"/>
-    <text x="111" y="134" text-anchor="middle" fill="#faf7f2">Client</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif">
+    <text x="40" y="112" font-size="13" font-weight="700" fill="#a8a29e">1 · UPLOAD</text>
 
-    <rect x="230" y="100" width="170" height="58" rx="8" fill="#5b3cc4"/>
-    <text x="315" y="134" text-anchor="middle" fill="#ffffff">API Gateway</text>
+    <rect x="40" y="128" width="156" height="84" rx="10" fill="#1c1917"/>
+    <text x="118" y="176" text-anchor="middle" fill="#faf7f2" font-size="16" font-weight="650">Client</text>
 
-    <rect x="444" y="100" width="180" height="58" rx="8" fill="#c2410c"/>
-    <text x="534" y="126" text-anchor="middle" fill="#ffffff">Lambda</text>
-    <text x="534" y="144" text-anchor="middle" fill="#ffedd5">presigned URL</text>
+    <rect x="268" y="128" width="190" height="84" rx="10" fill="#5b3cc4"/>
+    <text x="363" y="176" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">API Gateway</text>
 
-    <rect x="668" y="100" width="170" height="58" rx="8" fill="#1d4ed8"/>
-    <text x="753" y="134" text-anchor="middle" fill="#ffffff">DynamoDB</text>
+    <rect x="530" y="128" width="210" height="84" rx="10" fill="#c2410c"/>
+    <text x="635" y="166" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">Lambda</text>
+    <text x="635" y="188" text-anchor="middle" fill="#ffedd5" font-size="13">presigned URL</text>
 
-    <rect x="882" y="100" width="250" height="58" rx="8" fill="#3f6212"/>
-    <text x="1007" y="126" text-anchor="middle" fill="#ffffff">S3 source bucket</text>
-    <text x="1007" y="144" text-anchor="middle" fill="#ecfccb">private, SSE-S3</text>
+    <rect x="840" y="128" width="200" height="84" rx="10" fill="#1d4ed8"/>
+    <text x="940" y="166" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">DynamoDB</text>
+    <text x="940" y="188" text-anchor="middle" fill="#dbeafe" font-size="13">awaiting upload</text>
 
-    <path d="M186 129 H230" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M400 129 H444" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M624 129 H668" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M186 150 C186 188, 1007 188, 1007 158" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <text x="520" y="184" text-anchor="middle" fill="#57534e" font-size="12">browser uploads the file with the presigned URL</text>
+    <path d="M196 170 H260" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M458 170 H522" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M740 170 H832" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <text x="228" y="158" text-anchor="middle" fill="#57534e" font-size="12">POST</text>
+    <text x="490" y="158" text-anchor="middle" fill="#57534e" font-size="12">invoke</text>
+    <text x="786" y="158" text-anchor="middle" fill="#57534e" font-size="12">save status</text>
 
-    <rect x="36" y="230" width="250" height="58" rx="8" fill="#3f6212"/>
-    <text x="161" y="256" text-anchor="middle" fill="#ffffff">S3 event notification</text>
-    <text x="161" y="274" text-anchor="middle" fill="#ecfccb">prefix uploads/</text>
+    <path d="M118 212 V292" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <text x="132" y="258" fill="#57534e" font-size="13">presigned PUT</text>
 
-    <rect x="330" y="230" width="150" height="58" rx="8" fill="#9d174d"/>
-    <text x="405" y="264" text-anchor="middle" fill="#ffffff">SQS queue</text>
+    <text x="330" y="276" font-size="13" font-weight="700" fill="#a8a29e">2 · QUEUE</text>
 
-    <rect x="330" y="304" width="150" height="48" rx="8" fill="#7f1d1d"/>
-    <text x="405" y="333" text-anchor="middle" fill="#ffffff">Dead-letter queue</text>
+    <rect x="40" y="300" width="230" height="84" rx="10" fill="#3f6212"/>
+    <text x="155" y="338" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">S3 source bucket</text>
+    <text x="155" y="360" text-anchor="middle" fill="#ecfccb" font-size="13">private, SSE-S3</text>
 
-    <rect x="524" y="230" width="180" height="58" rx="8" fill="#c2410c"/>
-    <text x="614" y="256" text-anchor="middle" fill="#ffffff">Lambda</text>
-    <text x="614" y="274" text-anchor="middle" fill="#ffedd5">start workflow</text>
+    <rect x="330" y="300" width="176" height="84" rx="10" fill="#9d174d"/>
+    <text x="418" y="348" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">SQS queue</text>
 
-    <rect x="748" y="214" width="384" height="150" rx="12" fill="none" stroke="#9d174d" stroke-width="1.5" stroke-dasharray="6 4"/>
-    <text x="940" y="236" text-anchor="middle" fill="#9d174d">Step Functions</text>
-    <rect x="768" y="252" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
-    <text x="810" y="276" text-anchor="middle" fill="#9a3412">Validate</text>
-    <rect x="864" y="252" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
-    <text x="906" y="276" text-anchor="middle" fill="#9a3412">Resize</text>
-    <rect x="960" y="252" width="100" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
-    <text x="1010" y="276" text-anchor="middle" fill="#9a3412">Watermark</text>
-    <rect x="768" y="306" width="84" height="40" rx="6" fill="#fff7ed" stroke="#c2410c"/>
-    <text x="810" y="330" text-anchor="middle" fill="#9a3412">Store</text>
-    <text x="940" y="348" text-anchor="middle" fill="#57534e" font-size="12">image bytes stay in S3, not in the workflow payload</text>
+    <rect x="566" y="300" width="220" height="84" rx="10" fill="#c2410c"/>
+    <text x="676" y="338" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">Lambda</text>
+    <text x="676" y="360" text-anchor="middle" fill="#ffedd5" font-size="13">start workflow</text>
 
-    <path d="M286 259 H330" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M405 288 V304" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M480 259 H524" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M704 259 H748" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <text x="405" y="226" text-anchor="middle" fill="#57534e" font-size="12">decoupled, 3 tries then DLQ</text>
+    <path d="M270 342 H322" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M506 342 H558" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <text x="296" y="330" text-anchor="middle" fill="#57534e" font-size="12">event</text>
+    <text x="532" y="330" text-anchor="middle" fill="#57534e" font-size="12">poll</text>
 
-    <rect x="36" y="430" width="250" height="58" rx="8" fill="#3f6212"/>
-    <text x="161" y="456" text-anchor="middle" fill="#ffffff">S3 destination bucket</text>
-    <text x="161" y="474" text-anchor="middle" fill="#ecfccb">images/ prefix only</text>
+    <path d="M418 384 V428" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <text x="432" y="412" fill="#57534e" font-size="13">after 3 failed tries</text>
 
-    <rect x="330" y="430" width="180" height="58" rx="8" fill="#5b3cc4"/>
-    <text x="420" y="456" text-anchor="middle" fill="#ffffff">CloudFront</text>
-    <text x="420" y="474" text-anchor="middle" fill="#ede9fe">OAC, HTTPS</text>
+    <rect x="330" y="436" width="176" height="68" rx="10" fill="#7f1d1d"/>
+    <text x="418" y="476" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="650">Dead-letter queue</text>
 
-    <rect x="554" y="430" width="150" height="58" rx="8" fill="#1c1917"/>
-    <text x="629" y="464" text-anchor="middle" fill="#faf7f2">Viewers</text>
+    <text x="40" y="548" font-size="13" font-weight="700" fill="#a8a29e">3 · PROCESS</text>
+    <rect x="40" y="564" width="1120" height="188" rx="14" fill="#fffdf8" stroke="#9d174d" stroke-width="1.6" stroke-dasharray="7 5"/>
+    <text x="64" y="598" fill="#9d174d" font-size="16" font-weight="700">Step Functions</text>
 
-    <rect x="748" y="430" width="170" height="58" rx="8" fill="#9d174d"/>
-    <text x="833" y="464" text-anchor="middle" fill="#ffffff">SNS topic</text>
+    <rect x="150" y="622" width="190" height="72" rx="8" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="245" y="664" text-anchor="middle" fill="#9a3412" font-size="16" font-weight="650">Validate</text>
+    <rect x="400" y="622" width="190" height="72" rx="8" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="495" y="664" text-anchor="middle" fill="#9a3412" font-size="16" font-weight="650">Resize</text>
+    <rect x="650" y="622" width="190" height="72" rx="8" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="745" y="664" text-anchor="middle" fill="#9a3412" font-size="16" font-weight="650">Watermark</text>
+    <rect x="900" y="622" width="190" height="72" rx="8" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="995" y="664" text-anchor="middle" fill="#9a3412" font-size="16" font-weight="650">Store</text>
 
-    <rect x="962" y="430" width="170" height="58" rx="8" fill="#1d4ed8"/>
-    <text x="1047" y="456" text-anchor="middle" fill="#ffffff">DynamoDB</text>
-    <text x="1047" y="474" text-anchor="middle" fill="#dbeafe">status + URLs</text>
+    <path d="M340 658 H392" stroke="#c2410c" stroke-width="1.7" fill="none" marker-end="url(#arrow-hot)"/>
+    <path d="M590 658 H642" stroke="#c2410c" stroke-width="1.7" fill="none" marker-end="url(#arrow-hot)"/>
+    <path d="M840 658 H892" stroke="#c2410c" stroke-width="1.7" fill="none" marker-end="url(#arrow-hot)"/>
+    <text x="600" y="728" text-anchor="middle" fill="#78716c" font-size="13">Image bytes stay in S3. The workflow carries the object key only.</text>
 
-    <path d="M286 459 H330" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M510 459 H554" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M810 366 C810 400, 161 400, 161 430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M906 366 C906 408, 833 408, 833 430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-    <path d="M1047 366 V430" stroke="#44403c" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
+    <text x="360" y="792" font-size="13" font-weight="700" fill="#a8a29e">4 · DELIVER</text>
 
-    <text x="36" y="540" fill="#1c1917" font-family="Georgia, serif" font-size="18">Guards that do not change the request path</text>
-    <text x="36" y="568" fill="#44403c">Least-privilege IAM role on every function. Presigned upload expires in 5 minutes.</text>
-    <text x="36" y="590" fill="#44403c">Both buckets block public access. CloudFront is the only reader of processed images.</text>
-    <text x="36" y="612" fill="#44403c">SQS encryption uses the SQS managed key. Objects use SSE-S3. DynamoDB uses the AWS owned key.</text>
-    <text x="36" y="634" fill="#44403c">Lifecycle rules expire uploads, staging files, and old processed images. A CloudWatch alarm watches the DLQ.</text>
-    <text x="36" y="656" fill="#44403c">Rejected files stop after validation. Failures update DynamoDB and publish to SNS.</text>
-    <text x="36" y="700" fill="#57534e" font-size="12">Hassan Elhoushy</text>
+    <path d="M155 752 V836" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M860 752 V836" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M1088 752 V836" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <text x="168" y="800" fill="#57534e" font-size="13">processed files</text>
+    <text x="872" y="800" fill="#57534e" font-size="13">notify</text>
+    <text x="1076" y="800" text-anchor="end" fill="#57534e" font-size="13">save URLs</text>
+
+    <rect x="40" y="844" width="230" height="84" rx="10" fill="#3f6212"/>
+    <text x="155" y="882" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">S3 destination</text>
+    <text x="155" y="904" text-anchor="middle" fill="#ecfccb" font-size="13">images/ prefix</text>
+
+    <rect x="318" y="844" width="190" height="84" rx="10" fill="#5b3cc4"/>
+    <text x="413" y="882" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">CloudFront</text>
+    <text x="413" y="904" text-anchor="middle" fill="#ede9fe" font-size="13">OAC, HTTPS</text>
+
+    <rect x="556" y="844" width="160" height="84" rx="10" fill="#1c1917"/>
+    <text x="636" y="892" text-anchor="middle" fill="#faf7f2" font-size="16" font-weight="650">Viewers</text>
+
+    <rect x="770" y="844" width="180" height="84" rx="10" fill="#9d174d"/>
+    <text x="860" y="892" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">SNS topic</text>
+
+    <rect x="996" y="844" width="184" height="84" rx="10" fill="#1d4ed8"/>
+    <text x="1088" y="882" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="650">DynamoDB</text>
+    <text x="1088" y="904" text-anchor="middle" fill="#dbeafe" font-size="13">status and URLs</text>
+
+    <path d="M270 886 H310" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+    <path d="M508 886 H548" stroke="#44403c" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/>
+
+    <text x="40" y="972" font-size="13" font-weight="700" fill="#a8a29e">GUARDS</text>
+
+    <rect x="40" y="988" width="270" height="96" rx="10" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="56" y="1016" fill="#1c1917" font-size="14" font-weight="700">Access</text>
+    <text x="56" y="1040" fill="#57534e" font-size="13">One IAM role per function.</text>
+    <text x="56" y="1060" fill="#57534e" font-size="13">Upload URL expires in 5 minutes.</text>
+
+    <rect x="326" y="988" width="270" height="96" rx="10" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="342" y="1016" fill="#1c1917" font-size="14" font-weight="700">Privacy</text>
+    <text x="342" y="1040" fill="#57534e" font-size="13">Both buckets block public access.</text>
+    <text x="342" y="1060" fill="#57534e" font-size="13">CloudFront is the only reader.</text>
+
+    <rect x="612" y="988" width="270" height="96" rx="10" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="628" y="1016" fill="#1c1917" font-size="14" font-weight="700">Encryption</text>
+    <text x="628" y="1040" fill="#57534e" font-size="13">SSE-S3 and the SQS managed key.</text>
+    <text x="628" y="1060" fill="#57534e" font-size="13">DynamoDB uses its owned key.</text>
+
+    <rect x="898" y="988" width="262" height="96" rx="10" fill="#ffffff" stroke="#e7e5e4"/>
+    <text x="914" y="1016" fill="#1c1917" font-size="14" font-weight="700">Retention</text>
+    <text x="914" y="1040" fill="#57534e" font-size="13">Lifecycle expires old objects.</text>
+    <text x="914" y="1060" fill="#57534e" font-size="13">CloudWatch alarms the DLQ.</text>
   </g>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
       <path d="M0 0 L7 3 L0 6 Z" fill="#44403c"/>
+    </marker>
+    <marker id="arrow-hot" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0 0 L7 3 L0 6 Z" fill="#c2410c"/>
     </marker>
   </defs>
 </svg>

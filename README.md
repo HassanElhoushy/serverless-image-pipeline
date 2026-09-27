@@ -8,24 +8,9 @@ This repository is the graduation submission for AWS Solutions Architect Associa
 
 ## Architecture
 
-![Architecture diagram](docs/architecture.svg)
+The diagram uses the official AWS Architecture Icons.
 
-```mermaid
-flowchart LR
-  client[Client] --> api[API Gateway]
-  api --> presign[Presign Lambda]
-  presign --> table[(DynamoDB)]
-  client --> source[(S3 source)]
-  source --> queue[SQS]
-  queue --> dlq[DLQ]
-  queue --> start[Start Lambda]
-  start --> workflow[Step Functions]
-  workflow --> dest[(S3 destination)]
-  dest --> cdn[CloudFront]
-  cdn --> viewers[Viewers]
-  workflow --> table
-  workflow --> topic[SNS]
-```
+![Architecture diagram](docs/architecture.png)
 
 ## Request path
 
